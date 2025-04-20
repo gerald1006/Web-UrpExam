@@ -1,10 +1,10 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Login from "./Page/login";
+import Login from "./Page/Login";
 import Admin from "./Page/Admin";
 import Alumno from "./Page/Alumno";
 
-export default function App() {
+function App() {
   return (
     <Router>
       <Routes>
@@ -15,3 +15,5 @@ export default function App() {
     </Router>
   );
 }
+
+export default App;

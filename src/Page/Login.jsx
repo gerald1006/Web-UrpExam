@@ -1,39 +1,54 @@
 import React, { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from "../../supabaseClient";
 import { useNavigate } from "react-router-dom";
-// import { auth } from "../firebase";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [clave, setClave] = useState("");
   const navigate = useNavigate();
 
+  
+
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
+      // Iniciar sesión con Supabase
+      const { data: session, error } = await supabase.auth.signInWithPassword({
         email,
-        clave
-      );
-      const user = userCredential.user;
+        password: clave,
+      });
 
-      // Consultar el rol desde Firestore
-      const docRef = doc(db, "usuarios", user.uid);
-      const docSnap = await getDoc(docRef);
+      if (error) {
+        console.error("Error al iniciar sesión:", error.message);
+        alert("Error al iniciar sesión.");
+        return;
+      }
 
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.rol === "admin") {
-          navigate("/admin");
-        } else if (data.rol === "alumno") {
-          navigate("/alumno");
-        } else {
-          alert("Rol no reconocido.");
-        }
+      console.log("Sesión iniciada:", session);
+
+      // Obtener el rol del usuario desde la tabla `profiles`
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+        
+
+      if (profileError) {
+        console.error("Error al obtener el perfil:", profileError.message);
+        alert("Error al obtener el perfil del usuario.");
+        return;
+      }
+
+      console.log("Perfil del usuario:", profile);
+
+      // Redirigir según el rol
+      if (profile.role === "admin") {
+        navigate("/admin");
+      } else if (profile.role === "alumno") {
+        navigate("/alumno");
       } else {
-        alert("No se encontró el documento del usuario.");
+        alert("Rol no reconocido.");
       }
     } catch (error) {
       console.error("Error al iniciar sesión:", error.message);
