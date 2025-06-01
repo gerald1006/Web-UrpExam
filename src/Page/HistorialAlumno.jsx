@@ -6,13 +6,11 @@ import {
   IconButton,
   Box,
   Drawer,
-  Avatar,
   List,
   ListItem,
   ListItemButton,
   ListItemText,
   Grid,
-  Paper,
   TextField,
   Rating,
   Select,
@@ -26,6 +24,7 @@ import {
   CardActions,
   Divider,
   Badge,
+  CircularProgress,
 } from "@mui/material";
 import { 
   Menu as MenuIcon, 
@@ -48,20 +47,95 @@ export default function HistorialAlumno() {
   const [filterCiclo, setFilterCiclo] = useState("");
   const [filterAnio, setFilterAnio] = useState("");
   const [sortBy, setSortBy] = useState("fecha_descarga");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    loadHistorialDescargas();
-    fetchExamenes();
-    loadUserRatings();
+    getCurrentUser();
   }, []);
 
-  const loadHistorialDescargas = () => {
-    // Cargar historial de descargas desde localStorage
+  useEffect(() => {
+    if (currentUser) {
+      loadData();
+    }
+  }, [currentUser]);
+
+  // Cargar ratings cuando examenes cambie
+  useEffect(() => {
+    if (currentUser && examenes.length > 0) {
+      loadUserRatings();
+    }
+  }, [currentUser, examenes]);
+
+  const getCurrentUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+      if (!user) {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error al obtener usuario:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Cargar datos en paralelo
+      await Promise.all([
+        loadHistorialDescargas(),
+        fetchExamenes()
+      ]);
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadHistorialDescargas = async () => {
+    if (!currentUser || !currentUser.email) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('historial_descargas')
+        .select('*')
+        .eq('email_estudiante', currentUser.email)
+        .order('fecha_descarga', { ascending: false });
+
+      if (error) {
+        console.error("Error al cargar historial:", error);
+        // Fallback a localStorage si hay error
+        loadHistorialFromLocalStorage();
+        return;
+      }
+
+      // Convertir datos de Supabase al formato esperado
+      const historialFormatted = data.map(item => ({
+        id: item.examen_id,
+        fecha_descarga: item.fecha_descarga,
+        contador_descargas: item.contador_descargas
+      }));
+      
+      setHistorialDescargas(historialFormatted);
+      console.log('Historial cargado desde Supabase:', historialFormatted.length, 'registros');
+      
+    } catch (error) {
+      console.error("Error de red:", error);
+      loadHistorialFromLocalStorage();
+    }
+  };
+
+  const loadHistorialFromLocalStorage = () => {
     const historial = localStorage.getItem('historialDescargas');
     if (historial) {
-      setHistorialDescargas(JSON.parse(historial));
+      const parsed = JSON.parse(historial);
+      setHistorialDescargas(parsed);
+      console.log('Historial cargado desde localStorage como fallback');
     }
   };
 
@@ -73,6 +147,7 @@ export default function HistorialAlumno() {
         setExamenes([]);
       } else if (Array.isArray(data)) {
         setExamenes(data);
+        console.log('Exámenes cargados:', data.length);
       } else {
         setExamenes([]);
       }
@@ -82,10 +157,47 @@ export default function HistorialAlumno() {
     }
   };
 
-  const loadUserRatings = () => {
-    const savedRatings = localStorage.getItem('userRatings');
-    if (savedRatings) {
-      setUserRatings(JSON.parse(savedRatings));
+  const loadUserRatings = async () => {
+    if (!currentUser || !currentUser.email) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('feedback_examenes')
+        .select('*')
+        .eq('email_estudiante', currentUser.email);
+
+      if (error) {
+        console.error('Error al cargar ratings:', error);
+        // Fallback a localStorage
+        const savedRatings = localStorage.getItem('userRatings');
+        if (savedRatings) {
+          setUserRatings(JSON.parse(savedRatings));
+        }
+        return;
+      }
+
+      // Convertir los datos a un objeto con el formato { examen_id: rating }
+      const ratingsMap = {};
+      if (data && Array.isArray(data)) {
+        data.forEach(feedback => {
+          // Buscar el examen correspondiente basado en los datos del feedback
+          const examen = examenes.find(e => 
+            e.curso === feedback.examen_curso &&
+            e.tipo === feedback.tipo &&
+            e.ciclo === feedback.ciclo &&
+            e.periodo === feedback.periodo &&
+            e.año === feedback.año
+          );
+          
+          if (examen) {
+            ratingsMap[examen.id] = feedback.rating;
+          }
+        });
+      }
+
+      setUserRatings(ratingsMap);
+    } catch (error) {
+      console.error('Error al cargar ratings:', error);
     }
   };
 
@@ -99,22 +211,109 @@ export default function HistorialAlumno() {
     setSidebarOpen(false);
   };
 
-  const handleDescargar = (examen) => {
-    // Actualizar historial de descargas
-    const nuevaDescarga = {
-      id: examen.id,
-      fecha_descarga: new Date().toISOString(),
-      contador_descargas: getContadorDescargas(examen.id) + 1
-    };
+  const handleDescargar = async (examen) => {
+    if (!currentUser || !currentUser.email) {
+      console.error('Usuario no autenticado');
+      return;
+    }
 
-    const historialActualizado = historialDescargas.filter(item => item.id !== examen.id);
-    historialActualizado.push(nuevaDescarga);
-    
-    setHistorialDescargas(historialActualizado);
-    localStorage.setItem('historialDescargas', JSON.stringify(historialActualizado));
+    try {
+      console.log('Registrando descarga para examen:', examen.id);
+      
+      // Verificar si ya existe un registro de descarga para este usuario y examen
+      const { data: existingRecord, error: searchError } = await supabase
+        .from('historial_descargas')
+        .select('*')
+        .eq('examen_id', examen.id)
+        .eq('email_estudiante', currentUser.email)
+        .single();
 
-    // Abrir PDF
-    window.open(examen.archivo_url, '_blank');
+      if (searchError && searchError.code !== 'PGRST116') {
+        console.error('Error al buscar registro:', searchError);
+        return;
+      }
+
+      let newContadorDescargas = 1;
+
+      if (existingRecord) {
+        console.log('Actualizando registro existente');
+        newContadorDescargas = existingRecord.contador_descargas + 1;
+        
+        // Actualizar contador de descargas existente
+        const { error: updateError } = await supabase
+          .from('historial_descargas')
+          .update({
+            contador_descargas: newContadorDescargas,
+            fecha_descarga: new Date().toISOString()
+          })
+          .eq('id', existingRecord.id);
+
+        if (updateError) {
+          console.error('Error al actualizar descarga:', updateError);
+          return;
+        }
+
+        // Actualizar estado local
+        setHistorialDescargas(prev => 
+          prev.map(item => 
+            item.id === examen.id 
+              ? { ...item, contador_descargas: newContadorDescargas, fecha_descarga: new Date().toISOString() }
+              : item
+          )
+        );
+      } else {
+        console.log('Creando nuevo registro de descarga');
+        
+        // Crear nuevo registro de descarga
+        const { error: insertError } = await supabase
+          .from('historial_descargas')
+          .insert([{
+            examen_id: examen.id,
+            email_estudiante: currentUser.email,
+            contador_descargas: 1,
+            fecha_descarga: new Date().toISOString()
+          }]);
+
+        if (insertError) {
+          console.error('Error al registrar descarga:', insertError);
+          return;
+        }
+
+        // Agregar al estado local
+        const nuevoRegistro = {
+          id: examen.id,
+          fecha_descarga: new Date().toISOString(),
+          contador_descargas: 1
+        };
+        
+        setHistorialDescargas(prev => [...prev, nuevoRegistro]);
+        console.log('Nuevo registro agregado al estado local');
+      }
+
+      // También actualizar localStorage como respaldo
+      const historialLocal = JSON.parse(localStorage.getItem('historialDescargas') || '[]');
+      const descargaExistente = historialLocal.find(item => item.id === examen.id);
+      
+      if (descargaExistente) {
+        descargaExistente.contador_descargas += 1;
+        descargaExistente.fecha_descarga = new Date().toISOString();
+      } else {
+        historialLocal.push({
+          id: examen.id,
+          fecha_descarga: new Date().toISOString(),
+          contador_descargas: 1
+        });
+      }
+      
+      localStorage.setItem('historialDescargas', JSON.stringify(historialLocal));
+
+      // Abrir PDF
+      window.open(examen.archivo_url, '_blank');
+      
+      console.log('Descarga registrada exitosamente');
+    } catch (error) {
+      console.error('Error al registrar descarga:', error);
+    }
   };
 
   const getContadorDescargas = (examenId) => {
@@ -171,6 +370,20 @@ export default function HistorialAlumno() {
   const totalDescargas = historialDescargas.reduce((sum, item) => sum + item.contador_descargas, 0);
   const examenesEvaluados = Object.keys(userRatings).filter(id => userRatings[id] > 0).length;
 
+  if (loading) {
+    return (
+      <Box sx={{ 
+        height: "100vh", 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center",
+        backgroundColor: "#0000"
+      }}>
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ height: "100vh", width: "100vw", backgroundColor: "#f0f2f5", display: "flex", flexDirection: "column" }}>
       <AppBar position="static" sx={{ backgroundColor: "#000000" }}>
@@ -198,7 +411,7 @@ export default function HistorialAlumno() {
         }}
       >
         <Box sx={{ textAlign: "center", padding: 3 }}>
-                       <Box
+           <Box
             sx={{
               width: 110,
               height: 110,
@@ -215,15 +428,15 @@ export default function HistorialAlumno() {
               p: 1,
             }}
             >
-                        <img
-            src="/img/URPEXAM.png"
-            alt="Logo"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-            }}
-          />
+            <img
+              src="/img/URPEXAM.png"
+              alt="Logo"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
           </Box>
           <Typography
             variant="h6"
@@ -407,10 +620,17 @@ export default function HistorialAlumno() {
             >
               <MenuItem value="fecha_descarga">Fecha de descarga</MenuItem>
               <MenuItem value="curso">Curso (A-Z)</MenuItem>
-              <MenuItem value="descargas">Más descargados</MenuItem>
               <MenuItem value="rating">Mejor evaluados</MenuItem>
             </Select>
           </FormControl>
+
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => loadData()}
+          >
+            Recargar
+          </Button>
         </Box>
 
         {/* Lista de exámenes */}
@@ -454,12 +674,20 @@ export default function HistorialAlumno() {
                   >
                     <CardContent sx={{ flex: 1 }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: "bold", color: "#1565C0" }}>
+                        <Typography variant="h6" sx={{ fontWeight: "bold", color: "#274a2a" }}>
                           {examen.curso}
                         </Typography>
-                        <Badge badgeContent={contadorDescargas} color="primary">
-                          <DownloadIcon color="action" />
-                        </Badge>
+                        <Badge 
+  badgeContent={contadorDescargas} 
+  sx={{
+    "& .MuiBadge-badge": {
+      backgroundColor: "#4CAF50",
+      color: "white"
+    }
+  }}
+>
+  <DownloadIcon color="action" />
+</Badge>
                       </Box>
 
                       <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
@@ -487,23 +715,20 @@ export default function HistorialAlumno() {
                     <Divider />
 
                     <CardActions sx={{ p: 2, gap: 1 }}>
-                      <Button
-                        size="small"
-                        startIcon={<VisibilityIcon />}
-                        onClick={() => window.open(examen.archivo_url, '_blank')}
-                        sx={{ flex: 1 }}
-                      >
-                        Ver
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        startIcon={<DownloadIcon />}
-                        onClick={() => handleDescargar(examen)}
-                        sx={{ flex: 1 }}
-                      >
-                        Descargar
-                      </Button>
+                      
+                    <Button
+  size="small"
+  variant="contained"
+  startIcon={<DownloadIcon />}
+  onClick={() => handleDescargar(examen)}
+  sx={{ 
+    flex: 1,
+    bgcolor: "#4CAF50",
+    "&:hover": { bgcolor: "#388E3C" }
+  }}
+>
+  Descargar
+</Button>
                     </CardActions>
                   </Card>
                 </Grid>
@@ -515,3 +740,4 @@ export default function HistorialAlumno() {
     </Box>
   );
 }
+            
