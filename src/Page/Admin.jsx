@@ -1,583 +1,431 @@
 import React, { useEffect, useState } from "react";
-import { supabase } from "../../supabaseClient";
 import {
   AppBar,
   Toolbar,
   Typography,
-  Box,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   IconButton,
-  TextField,
-  Fab,
-  Snackbar,
-  Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Box,
   Drawer,
+  Avatar,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Grid,
+  Paper,
+  TextField,
+  Rating,
   Select,
   MenuItem,
+  InputLabel,
+  FormControl,
+  Modal,
+  Fade,
+  Backdrop,
 } from "@mui/material";
-import {
-  Menu as MenuIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-} from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { Menu as MenuIcon } from "@mui/icons-material";
+import { supabase } from "../../supabaseClient";
+import { useNavigate, useLocation } from "react-router-dom";
 
-export default function Admin() {
-  const [examenes, setExamenes] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function AdminPanel() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [newExamen, setNewExamen] = useState({
-    curso: "",
-    tipo: "",
-    ciclo: "",
-    archivo_url: "",
-  });
-  const [pdfPreview, setPdfPreview] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [examenes, setExamenes] = useState([]);
+  const [filterCurso, setFilterCurso] = useState("");
+  const [filterTipo, setFilterTipo] = useState("");
+  const [filterCiclo, setFilterCiclo] = useState("");
+  const [filterPeriodo, setFilterPeriodo] = useState("");
+  const [filterAnio, setFilterAnio] = useState("");
+  const [selectedExamen, setSelectedExamen] = useState(null);
+  const [notas, setNotas] = useState({});
+  const [ratings, setRatings] = useState({});
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState(""); // Para buscar por curso
-  const [filterTipo, setFilterTipo] = useState(""); // Para filtrar por tipo
-  const [filterCiclo, setFilterCiclo] = useState(""); // Para filtrar por ciclo
+  const location = useLocation();
 
-  // Obtener los datos de la tabla "examenes"
   useEffect(() => {
-    const fetchExamenes = async () => {
-      const { data, error } = await supabase.from("examenes").select("*");
-      if (error) {
-        console.error("Error al obtener exámenes:", error.message);
-      } else {
-        setExamenes(data);
+    // Usa fetch en vez de .then para evitar problemas de compatibilidad y CORS
+    async function fetchExamenes() {
+      try {
+        const { data, error } = await supabase.from("examenes").select("*");
+        if (error) {
+          console.error("Error al obtener exámenes:", error.message);
+          setExamenes([]);
+        } else if (Array.isArray(data)) {
+          setExamenes(data);
+        } else {
+          setExamenes([]);
+        }
+      } catch (err) {
+        console.error("Error de red o CORS:", err);
+        setExamenes([]);
       }
-      setLoading(false);
-    };
-
+    }
     fetchExamenes();
   }, []);
 
-  // Manejar cambios en el formulario
-  const handleNewExamenChange = (e) => {
-    const { name, value } = e.target;
-    setNewExamen((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Manejar carga de archivo PDF
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type === "application/pdf") {
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPdfPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setSnackbarMessage("Por favor, selecciona un archivo PDF válido.");
-      setSnackbarOpen(true);
-    }
-  };
-
-  // Agregar o editar un examen
-  const handleAddExamen = async () => {
-    const { curso, tipo, ciclo, archivo_url } = newExamen;
-
-    if (!curso || !tipo || !ciclo || (!selectedFile && !newExamen.id)) {
-      setSnackbarMessage("Todos los campos son obligatorios.");
-      setSnackbarOpen(true);
-      return;
-    }
-
-    let newArchivoUrl = archivo_url;
-
-    if (selectedFile) {
-      const sanitizedFileName = selectedFile.name
-        .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9_.]/g, "");
-
-      // Si estamos editando, eliminar el archivo antiguo
-      if (archivo_url) {
-        const oldFilePath = archivo_url.split(
-          "/storage/v1/object/public/examenes/"
-        )[1];
-        const { error: deleteError } = await supabase.storage
-          .from("examenes")
-          .remove([oldFilePath]);
-        if (deleteError) {
-          console.error(
-            "Error al eliminar el archivo antiguo:",
-            deleteError.message
-          );
-        }
-      }
-
-      // Subir el nuevo archivo
-      const { data, error: uploadError } = await supabase.storage
-        .from("examenes")
-        .upload(`pdfs/${sanitizedFileName}`, selectedFile, {
-          cacheControl: "3600",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        console.error("Error al subir el archivo:", uploadError.message);
-        setSnackbarMessage("Error al subir el archivo.");
-        setSnackbarOpen(true);
-        return;
-      }
-
-      newArchivoUrl = `https://klxnawelvudmfwzavakb.supabase.co/storage/v1/object/public/examenes/${data.path}`;
-    }
-
-    const examenData = { curso, tipo, ciclo, archivo_url: newArchivoUrl };
-
-    if (newExamen.id) {
-      // Editar examen existente
-      const { error: updateError } = await supabase
-        .from("examenes")
-        .update(examenData)
-        .eq("id", newExamen.id);
-
-      if (updateError) {
-        console.error("Error al actualizar el examen:", updateError.message);
-        setSnackbarMessage("Error al actualizar el examen.");
-        setSnackbarOpen(true);
-        return;
-      }
-      setSnackbarMessage("Examen actualizado exitosamente.");
-    } else {
-      // Agregar nuevo examen
-      const { error: insertError } = await supabase
-        .from("examenes")
-        .insert([examenData]);
-
-      if (insertError) {
-        console.error("Error al agregar el examen:", insertError.message);
-        setSnackbarMessage("Error al agregar el examen.");
-        setSnackbarOpen(true);
-        return;
-      }
-      setSnackbarMessage("Examen agregado exitosamente.");
-    }
-
-    setDialogOpen(false);
-    setNewExamen({ curso: "", tipo: "", ciclo: "", archivo_url: "" });
-    setPdfPreview(null);
-    setSelectedFile(null);
-
-    // Recargar los exámenes
-    const { data } = await supabase.from("examenes").select("*");
-    setExamenes(data);
-  };
-
-  // Eliminar un examen
-  const handleDeleteExamen = async (id, archivo_url) => {
-    const confirmDelete = window.confirm(
-      "¿Estás seguro de que deseas eliminar este examen?"
-    );
-    if (!confirmDelete) return;
-
-    // Eliminar el archivo del almacenamiento
-    if (archivo_url) {
-      const filePath = archivo_url.split(
-        "/storage/v1/object/public/examenes/"
-      )[1];
-      const { error: deleteFileError } = await supabase.storage
-        .from("examenes")
-        .remove([filePath]);
-      if (deleteFileError) {
-        console.error(
-          "Error al eliminar el archivo del almacenamiento:",
-          deleteFileError.message
-        );
-        setSnackbarMessage("Error al eliminar el archivo del almacenamiento.");
-        setSnackbarOpen(true);
-        return;
-      }
-    }
-
-    // Eliminar el examen de la base de datos
-    const { error } = await supabase.from("examenes").delete().eq("id", id);
-    if (error) {
-      console.error("Error al eliminar el examen:", error.message);
-      setSnackbarMessage("Error al eliminar el examen.");
-      setSnackbarOpen(true);
-    } else {
-      setSnackbarMessage("Examen eliminado exitosamente.");
-      setSnackbarOpen(true);
-
-      // Recargar los exámenes
-      const { data } = await supabase.from("examenes").select("*");
-      setExamenes(data);
-    }
-  };
-
-  // Editar un examen
-  const handleEditExamen = (examen) => {
-    setNewExamen(examen);
-    setPdfPreview(null); // Limpiar vista previa
-    setSelectedFile(null); // Limpiar archivo seleccionado
-    setDialogOpen(true);
-  };
-
-  // Cerrar sesión
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Error al cerrar sesión:", error.message);
-    } else {
-      navigate("/"); // Redirigir al login
-    }
+    if (!error) navigate("/");
   };
-  // Estado para el término de búsqueda
 
-  // Filtrar los exámenes según el término de búsqueda
-  const filteredExamenes = examenes.filter(
-    (examen) =>
-      examen.curso.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (filterTipo ? examen.tipo === filterTipo : true) &&
-      (filterCiclo ? examen.ciclo === filterCiclo : true)
-  );
+  const handleNav = (route) => {
+    navigate(route);
+    setSidebarOpen(false);
+  };
+
+  const filteredExamenes = Array.isArray(examenes)
+    ? examenes.filter(
+        (examen) =>
+          examen.curso?.toLowerCase().includes(filterCurso.toLowerCase()) &&
+          (filterTipo ? examen.tipo === filterTipo : true) &&
+          (filterCiclo ? examen.ciclo === filterCiclo : true) &&
+          (filterPeriodo ? examen.periodo === filterPeriodo : true) &&
+          (filterAnio ? String(examen.año) === String(filterAnio) : true)
+      )
+    : [];
 
   return (
-    <Box
-      sx={{
-        fontFamily: "Arial, sans-serif",
-        minHeight: "100vh",
-        width: "100vw",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <AppBar position="static" sx={{ backgroundColor: "#388E3C" }}>
+    <Box sx={{ height: "100vh", width: "100vw", backgroundColor: "#f0f2f5", display: "flex", flexDirection: "column" }}>
+      <AppBar position="static" sx={{ backgroundColor: "#4CAF50" }}>
         <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            onClick={() => setSidebarOpen(true)}
-          >
+          <IconButton edge="start" color="inherit" onClick={() => setSidebarOpen(true)}>
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" sx={{ flexGrow: 1, textAlign: "center" }}>
-            Exámenes - Admin
+            Panel de Evaluación de Exámenes
           </Typography>
         </Toolbar>
       </AppBar>
 
-      {/* Menú lateral */}
-      <Drawer
-        anchor="left"
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      >
-        <Box
-          sx={{
-            width: 250,
-            height: "100%",
-            backgroundColor: "black",
-            color: "white",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
+       <Drawer
+             anchor="left"
+             open={sidebarOpen}
+             onClose={() => setSidebarOpen(false)}
+             sx={{
+               "& .MuiDrawer-paper": {
+                 width: 250,
+                 backgroundColor: "#1a2b23",
+                 color: "white",
+                 backgroundImage: "none",
+               },
+             }}
+           >
+             <Box sx={{ textAlign: "center", padding: 3 }}>
+               <Avatar
+                 alt="ExamGarage Logo"
+                 src="/src/img/ExamGarage.png"
+                 sx={{
+                   width: 100,
+                   height: 100,
+                   margin: "0 auto",
+                   marginBottom: 2,
+                   backgroundColor: "#22382b",
+                 }}
+               />
+               <Typography
+                 variant="h6"
+                 sx={{
+                   fontWeight: "bold",
+                   color: "white",
+                   mt: 1,
+                   mb: 2,
+                   fontSize: 22,
+                   textShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                   letterSpacing: 1,
+                 }}
+               >
+                 ExamGarage
+               </Typography>
+             </Box>
+             <List>
+               <ListItem disablePadding>
+                 <ListItemButton
+                   selected={location.pathname === "/admin"}
+                   onClick={() => handleNav("/admin")}
+                 >
+                   <ListItemText primary="Exámenes" />
+                 </ListItemButton>
+               </ListItem>
+               <ListItem disablePadding>
+                 <ListItemButton
+                   selected={location.pathname === "/admin/agregar"}
+                   onClick={() => handleNav("/admin/agregar")}
+                 >
+                   <ListItemText primary="Agregar Examen" />
+                 </ListItemButton>
+               </ListItem>
+             </List>
+             <Box sx={{ flex: 1 }} />
+             <Box
+               sx={{
+                 textAlign: "center",
+                 padding: 2,
+                 borderTop: "1px solid gray",
+                 "&:hover": { backgroundColor: "#22382b", cursor: "pointer" },
+               }}
+               onClick={handleLogout}
+             >
+               <Typography
+                 variant="body1"
+                 sx={{ fontWeight: "bold", color: "white" }}
+               >
+                 Cerrar Sesión
+               </Typography>
+             </Box>
+           </Drawer>
+
+      <Box sx={{ flex: 1, display: "flex", height: "100%" }}>
+        <Box sx={{ flex: 1, p: { xs: 1, sm: 3 }, overflow: "auto" }}>
           <Box
             sx={{
-              padding: 2,
-              textAlign: "center",
-              borderBottom: "1px solid gray",
+              mb: 4,
+              display: "flex",
+              gap: 3,
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: { xs: "flex-start", md: "center" },
             }}
           >
-            <Typography
-              variant="h6"
-              sx={{ fontWeight: "bold", color: "white" }}
-            >
-              ExamURP
-            </Typography>
+            <TextField
+              label="Buscar por curso"
+              variant="outlined"
+              value={filterCurso}
+              onChange={(e) => setFilterCurso(e.target.value)}
+              sx={{ minWidth: 260, fontSize: 18 }}
+              InputProps={{ sx: { fontSize: 18, height: 56 } }}
+              InputLabelProps={{ sx: { fontSize: 16 } }}
+            />
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel sx={{ fontSize: 16 }}>Tipo</InputLabel>
+              <Select
+                value={filterTipo}
+                label="Tipo"
+                onChange={(e) => setFilterTipo(e.target.value)}
+                sx={{ fontSize: 18, height: 56 }}
+              >
+                <MenuItem value="">Todos los tipos</MenuItem>
+                <MenuItem value="Parcial">Parcial</MenuItem>
+                <MenuItem value="Final">Final</MenuItem>
+                <MenuItem value="Sustitutorio">Sustitutorio</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel sx={{ fontSize: 16 }}>Ciclo</InputLabel>
+              <Select
+                value={filterCiclo}
+                label="Ciclo"
+                onChange={(e) => setFilterCiclo(e.target.value)}
+                sx={{ fontSize: 18, height: 56 }}
+              >
+                <MenuItem value="">Todos los ciclos</MenuItem>
+                <MenuItem value="6 ciclo">6 ciclo</MenuItem>
+                <MenuItem value="7 ciclo">7 ciclo</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 160 }}>
+              <InputLabel sx={{ fontSize: 16 }}>Periodo</InputLabel>
+              <Select
+                value={filterPeriodo}
+                label="Periodo"
+                onChange={(e) => setFilterPeriodo(e.target.value)}
+                sx={{ fontSize: 18, height: 56 }}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                <MenuItem value="I">I</MenuItem>
+                <MenuItem value="II">II</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 140 }}>
+              <InputLabel sx={{ fontSize: 16 }}>Año</InputLabel>
+              <Select
+                value={filterAnio}
+                label="Año"
+                onChange={(e) => setFilterAnio(e.target.value)}
+                sx={{ fontSize: 18, height: 56 }}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                {[...new Set(examenes.map((e) => e.año))]
+                  .sort((a, b) => b - a)
+                  .map((anio) => (
+                    <MenuItem key={anio} value={anio}>
+                      {anio}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
           </Box>
-          <Box sx={{ flex: 1 }} />
-          <Box
+          <Grid
+            container
+            spacing={{ xs: 2, sm: 3, md: 4 }}
             sx={{
-              padding: 2,
-              borderTop: "1px solid gray",
-              textAlign: "center",
-              "&:hover": {
-                backgroundColor: "#333333",
-                cursor: "pointer",
+              margin: 0,
+              width: "100%",
+              maxWidth: "1600px",
+              mx: "auto",
+            }}
+          >
+            {filteredExamenes.length === 0 ? (
+              <Grid item xs={12}>
+                <Box sx={{ textAlign: "center", mt: 8, color: "#888" }}>
+                  <Typography variant="h6">
+                    No hay exámenes para mostrar.
+                  </Typography>
+                </Box>
+              </Grid>
+            ) : (
+              filteredExamenes.map((examen) => (
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                  md={4}
+                  lg={3}
+                  key={examen.id}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Paper
+                    elevation={4}
+                    sx={{
+                      p: 4,
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      transition: "0.2s",
+                      height: 240,
+                      width: "100%",
+                      maxWidth: 350,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      "&:hover": { backgroundColor: "#e3f2fd" },
+                    }}
+                    onClick={() => setSelectedExamen(examen)}
+                  >
+                    <Box>
+                      <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
+                        {examen.curso}
+                      </Typography>
+                      <Typography variant="body1" color="textSecondary" sx={{ fontSize: 18 }}>
+                        {examen.tipo} • {examen.ciclo} • {examen.año}
+                      </Typography>
+                      <Typography variant="body1" color="textSecondary" sx={{ fontSize: 18 }}>
+                        Periodo: {examen.periodo}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ mt: 2 }}>
+                      <Rating value={ratings[examen.id] || 0} readOnly size="large" />
+                    </Box>
+                  </Paper>
+                </Grid>
+              )
+            ))}
+            
+      
+          </Grid>
+          {/* Modal Preview */}
+          <Modal
+            open={!!selectedExamen}
+            onClose={() => setSelectedExamen(null)}
+            closeAfterTransition
+            slots={{ backdrop: Backdrop }}
+            slotProps={{
+              backdrop: {
+                timeout: 500,
+                sx: { backgroundColor: "rgba(0,0,0,0.5)" },
               },
             }}
-            onClick={() => navigate("/")}
           >
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: "bold",
-                color: "white",
-                "&:hover": {
-                  color: "#FF5252",
-                },
-              }}
-            >
-              Cerrar Sesión
-            </Typography>
-          </Box>
-        </Box>
-      </Drawer>
-
-      <Box sx={{ flex: 1, padding: 3, overflow: "auto" }}>
-        {/* Filtros */}
-        <Box sx={{ display: "flex", gap: 2, marginBottom: 2 }}>
-          <TextField
-            label="Buscar por curso"
-            variant="outlined"
-            fullWidth
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Select
-            value={filterTipo}
-            onChange={(e) => setFilterTipo(e.target.value)}
-            displayEmpty
-            fullWidth
-          >
-            <MenuItem value="">Todos los tipos</MenuItem>
-            <MenuItem value="Parcial">Parcial</MenuItem>
-            <MenuItem value="Final">Final</MenuItem>
-            <MenuItem value="Sustitutorio">Sustitutorio</MenuItem>
-          </Select>
-          <Select
-            value={filterCiclo}
-            onChange={(e) => setFilterCiclo(e.target.value)}
-            displayEmpty
-            fullWidth
-          >
-            <MenuItem value="">Todos los ciclos</MenuItem>
-            <MenuItem value="6 ciclo">6 ciclo</MenuItem>
-            <MenuItem value="7 ciclo">7 ciclo</MenuItem>
-          </Select>
-        </Box>
-
-        {/* Tabla */}
-        <TableContainer
-          component={Paper}
-          sx={{ borderRadius: 3, boxShadow: 4 }}
-        >
-          <Table>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: "#4CAF50" }}>
-                {["Curso", "Tipo", "Ciclo", "Acciones"].map((header) => (
-                  <TableCell
-                    key={header}
-                    sx={{ color: "white", fontWeight: "bold" }}
-                  >
-                    {header}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={4} align="center">
-                    Cargando...
-                  </TableCell>
-                </TableRow>
-              ) : filteredExamenes.length > 0 ? (
-                filteredExamenes.map((examen) => (
-                  <TableRow key={examen.id} hover>
-                    <TableCell>{examen.curso}</TableCell>
-                    <TableCell>{examen.tipo}</TableCell>
-                    <TableCell>{examen.ciclo}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        href={examen.archivo_url}
-                        target="_blank"
-                        sx={{
-                          textTransform: "uppercase",
-                          fontWeight: "bold",
-                          backgroundColor: "#1976d2",
-                          "&:hover": {
-                            backgroundColor: "#1565c0",
-                            boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)",
-                          },
-                        }}
-                      >
-                        Visualizar
-                      </Button>
-                      <IconButton
-                        color="secondary"
-                        onClick={() => handleEditExamen(examen)}
-                        sx={{
-                          marginLeft: 1,
-                          "&:hover": {
-                            color: "#7b1fa2",
-                            transform: "scale(1.1)",
-                          },
-                        }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        color="error"
-                        onClick={() =>
-                          handleDeleteExamen(examen.id, examen.archivo_url)
-                        }
-                        sx={{
-                          marginLeft: 1,
-                          "&:hover": {
-                            color: "#d32f2f",
-                            transform: "scale(1.1)",
-                          },
-                        }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} align="center">
-                    No hay exámenes disponibles.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
-
-      <Fab
-        color="primary"
-        aria-label="add"
-        sx={{ position: "fixed", bottom: 16, right: 16 }}
-        onClick={() => setDialogOpen(true)}
-      >
-        <AddIcon />
-      </Fab>
-
-      <Dialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {newExamen.id ? "Editar Examen" : "Agregar Examen"}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <TextField
-              label="Curso"
-              name="curso"
-              value={newExamen.curso}
-              onChange={handleNewExamenChange}
-              fullWidth
-              margin="dense"
-            />
-            <Select
-              label="Tipo"
-              name="tipo"
-              value={newExamen.tipo}
-              onChange={(e) =>
-                setNewExamen((prev) => ({ ...prev, tipo: e.target.value }))
-              }
-              displayEmpty
-              fullWidth
-            >
-              <MenuItem value="" disabled>
-                Seleccione un tipo
-              </MenuItem>
-              <MenuItem value="Parcial">Parcial</MenuItem>
-              <MenuItem value="Final">Final</MenuItem>
-              <MenuItem value="Sustitutorio">Sustitutorio</MenuItem>
-            </Select>
-
-            <Select
-              label="Ciclo"
-              name="ciclo"
-              value={newExamen.ciclo}
-              onChange={(e) =>
-                setNewExamen((prev) => ({ ...prev, ciclo: e.target.value }))
-              }
-              displayEmpty
-              fullWidth
-            >
-              <MenuItem value="" disabled>
-                Seleccione un ciclo
-              </MenuItem>
-              <MenuItem value="6 ciclo">6 ciclo</MenuItem>
-              <MenuItem value="7 ciclo">7 ciclo</MenuItem>
-            </Select>
-            <Button variant="contained" component="label">
-              Subir PDF
-              <input
-                type="file"
-                hidden
-                accept="application/pdf"
-                onChange={handleFileChange}
-              />
-            </Button>
-            {pdfPreview && (
-              <iframe
-                src={pdfPreview}
-                title="Vista previa del PDF"
-                style={{
-                  width: "100%",
-                  height: "300px",
-                  border: "1px solid #ccc",
+            <Fade in={!!selectedExamen}>
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: { xs: "98%", sm: "90%", md: "80%" },
+                  maxWidth: 1200,
+                  bgcolor: "background.paper",
+                  borderRadius: 3,
+                  boxShadow: 24,
+                  p: { xs: 1, sm: 3, md: 4 },
+                  maxHeight: "90vh",
+                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: { xs: "column", md: "row" },
+                  gap: 3,
                 }}
-              />
-            )}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
-          <Button onClick={handleAddExamen} variant="contained" color="primary">
-            {newExamen.id ? "Guardar Cambios" : "Agregar"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => {
-          setSnackbarOpen(false);
-          setSnackbarMessage("");
-        }}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => {
-            setSnackbarOpen(false);
-            setSnackbarMessage("");
-          }}
-          severity={
-            snackbarMessage.includes("exitosamente") ? "success" : "error"
-          }
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+              >
+                {selectedExamen && (
+                  <>
+                    {/* Preview PDF */}
+                    <Box sx={{
+                      flex: 1,
+                      border: "1px solid #ccc",
+                      borderRadius: 2,
+                      overflow: "hidden",
+                      minWidth: 320,
+                      minHeight: 400,
+                      bgcolor: "#fafafa"
+                    }}>
+                      <iframe
+                        src={selectedExamen.archivo_url}
+                        title="Vista previa del examen"
+                        width="100%"
+                        height="100%"
+                        style={{ minHeight: "400px", border: "none" }}
+                      />
+                    </Box>
+                    {/* Info, notas y clasificación */}
+                    <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 320 }}>
+                      <Typography variant="h5" sx={{ fontWeight: "bold" }}>{selectedExamen.curso}</Typography>
+                      <Typography variant="subtitle1" color="textSecondary">
+                        {selectedExamen.tipo} • {selectedExamen.ciclo} • {selectedExamen.año}
+                      </Typography>
+                      <Typography variant="subtitle2" color="textSecondary">
+                        Periodo: {selectedExamen.periodo}
+                      </Typography>
+                      <TextField
+                        label="Notas"
+                        multiline
+                        rows={5}
+                        fullWidth
+                        value={notas[selectedExamen.id] || ""}
+                        onChange={(e) =>
+                          setNotas({ ...notas, [selectedExamen.id]: e.target.value })
+                        }
+                        sx={{ mt: 2 }}
+                      />
+                      <Box display="flex" alignItems="center" gap={2} sx={{ mt: 2 }}>
+                        <Typography>Clasificación:</Typography>
+                        <Rating
+                          value={ratings[selectedExamen.id] || 0}
+                          onChange={(_, newValue) =>
+                            setRatings({ ...ratings, [selectedExamen.id]: newValue })
+                          }
+                          size="large"
+                        />
+                      </Box>
+                    </Box>
+                  </>
+                )}
+              </Box>
+            </Fade>
+          </Modal>
+        </Box>
+      </Box>
     </Box>
   );
 }
+// No hay nada en el código que impida que funcione en Chrome si funciona en Opera.
+// Si no ves los exámenes en Chrome pero sí en Opera, revisa lo siguiente:
+
+// 1. Borra el caché y cookies de Chrome.
+// 2. Asegúrate de que no tienes extensiones de bloqueo (AdBlock, Privacy Badger, etc) que bloqueen requests a Supabase.
+// 3. Abre la consola de Chrome (F12) y revisa la pestaña "Console" y "Network" para ver si hay errores de CORS, permisos, o bloqueos.
+// 4. Verifica que la URL de Supabase y la clave sean correctas y públicas.
+// 5. Si tu proyecto está en http://localhost y Supabase está en https://, Chrome puede bloquear por política de contenido mixto. Usa siempre https://localhost si puedes.
+// 6. Si tienes configuraciones de CORS en Supabase, asegúrate de permitir el origen de tu frontend.
+
+// El código está bien, el problema es de configuración, permisos, o caché en tu navegador Chrome.
