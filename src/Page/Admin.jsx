@@ -111,8 +111,8 @@ export default function AdminPanel() {
            >
              <Box sx={{ textAlign: "center", padding: 3 }}>
                <Avatar
-                 alt="ExamGarage Logo"
-                 src="/src/img/ExamGarage.png"
+                 alt="ExamURP Logo"
+                 src="/src/img/ExamURP.png"
                  sx={{
                    width: 100,
                    height: 100,
@@ -133,7 +133,7 @@ export default function AdminPanel() {
                    letterSpacing: 1,
                  }}
                >
-                 ExamGarage
+                 ExamURP
                </Typography>
              </Box>
              <List>
