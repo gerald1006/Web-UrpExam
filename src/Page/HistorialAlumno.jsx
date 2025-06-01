@@ -173,7 +173,7 @@ export default function HistorialAlumno() {
 
   return (
     <Box sx={{ height: "100vh", width: "100vw", backgroundColor: "#f0f2f5", display: "flex", flexDirection: "column" }}>
-      <AppBar position="static" sx={{ backgroundColor: "#4CAF50" }}>
+      <AppBar position="static" sx={{ backgroundColor: "#000000" }}>
         <Toolbar>
           <IconButton edge="start" color="inherit" onClick={() => setSidebarOpen(true)}>
             <MenuIcon />
@@ -191,14 +191,14 @@ export default function HistorialAlumno() {
         sx={{
           "& .MuiDrawer-paper": {
             width: 250,
-            backgroundColor: "#1a2b23",
+            backgroundColor: "#1a512e",
             color: "white",
             backgroundImage: "none",
           },
         }}
       >
         <Box sx={{ textAlign: "center", padding: 3 }}>
-           <Box
+                       <Box
             sx={{
               width: 110,
               height: 110,
@@ -216,14 +216,14 @@ export default function HistorialAlumno() {
             }}
             >
                         <img
-              src="/src/img/URP EXAM.png"
-              alt="ExamURP Logo"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-              }}
-            />
+            src="/img/URPEXAM.png"
+            alt="Logo"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+            }}
+          />
           </Box>
           <Typography
             variant="h6"
@@ -272,10 +272,10 @@ export default function HistorialAlumno() {
           sx={{
             textAlign: "center",
             padding: 2,
-            borderTop: "1px solid #42A5F5",
-            "&:hover": { backgroundColor: "#0D47A1", cursor: "pointer" },
+            borderTop: "1px solid gray",
+            "&:hover": { backgroundColor: "#22382b", cursor: "pointer" },
           }}
-          onClick={handleLogout}
+          onClick={() => handleNav("/")}
         >
           <Typography variant="body1" sx={{ fontWeight: "bold", color: "white" }}>
             Cerrar Sesión
