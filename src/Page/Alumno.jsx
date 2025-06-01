@@ -333,7 +333,7 @@ export default function Alumno() {
 
   return (
     <Box sx={{ height: "100vh", width: "100vw", backgroundColor: "#f0f2f5", display: "flex", flexDirection: "column" }}>
-      <AppBar position="static" sx={{ backgroundColor: "#4CAF50" }}>
+      <AppBar position="static" sx={{ backgroundColor: "#000000" }}>
         <Toolbar>
           <IconButton edge="start" color="inherit" onClick={() => setSidebarOpen(true)}>
             <MenuIcon />
@@ -351,40 +351,40 @@ export default function Alumno() {
         sx={{
           "& .MuiDrawer-paper": {
             width: 250,
-            backgroundColor: "#1a2b23",
+            backgroundColor: "#1a512e",
             color: "white",
             backgroundImage: "none",
           },
         }}
       >
         <Box sx={{ textAlign: "center", padding: 3 }}>
-          <Box
-           sx={{
-             width: 110,
-             height: 110,
-             borderRadius: "70%",
-             overflow: "hidden",
-             border: "2px solid #22382b",
-             boxShadow: 2,
-             backgroundColor: "#fff",
-             display: "flex",
-             alignItems: "center",
-             justifyContent: "center",
-             margin: "0 auto",
-             marginBottom: 2,
-             p: 1,
-           }}
-           >
-                       <img
-             src="/src/img/URP EXAM.png"
-             alt="ExamURP Logo"
-             style={{
-               width: "100%",
-               height: "100%",
-               objectFit: "contain",
-             }}
-           />
-         </Box>
+                     <Box
+          sx={{
+            width: 110,
+            height: 110,
+            borderRadius: "70%",
+            overflow: "hidden",
+            border: "2px solid #22382b",
+            boxShadow: 2,
+            backgroundColor: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto",
+            marginBottom: 2,
+            p: 1,
+          }}
+          >
+                      <img
+          src="/img/URPEXAM.png"
+          alt="Logo"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+          }}
+        />
+        </Box>
           <Typography
             variant="h6"
             sx={{
@@ -432,10 +432,10 @@ export default function Alumno() {
           sx={{
             textAlign: "center",
             padding: 2,
-            borderTop: "1px solid #42A5F5",
-            "&:hover": { backgroundColor: "#0D47A1", cursor: "pointer" },
+            borderTop: "1px solid gray",
+            "&:hover": { backgroundColor: "#22382b", cursor: "pointer" },
           }}
-          onClick={handleLogout}
+          onClick={() => handleNav("/")}
         >
           <Typography variant="body1" sx={{ fontWeight: "bold", color: "white" }}>
             Cerrar Sesión
@@ -578,7 +578,7 @@ export default function Alumno() {
                     onClick={() => setSelectedExamen(examen)}
                   >
                     <Box>
-                      <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1, color: "#1565C0" }}>
+                      <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1, color: "#274a2a" }}>
                         {examen.curso}
                       </Typography>
                       <Typography variant="body1" color="textSecondary" sx={{ fontSize: 18 }}>
@@ -658,7 +658,7 @@ export default function Alumno() {
                       overflow: "hidden",
                       minWidth: 320,
                       minHeight: 400,
-                      bgcolor: "#fafafa"
+                      bgcolor: "#274a2a"
                     }}>
                       <iframe
                         src={selectedExamen.archivo_url}
@@ -671,7 +671,7 @@ export default function Alumno() {
 
                     {/* Formulario de evaluación */}
                     <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 320 }}>
-                      <Typography variant="h5" sx={{ fontWeight: "bold", color: "#1565C0" }}>
+                      <Typography variant="h5" sx={{ fontWeight: "bold", color: "#274a2a" }}>
                         {selectedExamen.curso}
                       </Typography>
                       <Typography variant="subtitle1" color="textSecondary">
@@ -682,7 +682,7 @@ export default function Alumno() {
                       </Typography>
 
                       <Box sx={{ mt: 2, p: 2, bgcolor: "#f5f5f5", borderRadius: 2 }}>
-                        <Typography variant="h6" sx={{ mb: 2, color: "#1565C0" }}>
+                        <Typography variant="h6" sx={{ mb: 2, color: "#274a2a" }}>
                           Evalúa este examen
                         </Typography>
 
@@ -725,8 +725,8 @@ export default function Alumno() {
                           disabled={loading}
                           startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
                           sx={{
-                            bgcolor: "#2196F3",
-                            "&:hover": { bgcolor: "#1976D2" },
+                            bgcolor: "#4CAF50",
+                            "&:hover": { bgcolor: "#274a2a" },
                             py: 1.5,
                           }}
                         >

@@ -6,7 +6,6 @@ import {
   IconButton,
   Box,
   Drawer,
-  Avatar,
   Button,
   TextField,
   FormControl,
@@ -123,7 +122,7 @@ export default function ExamSafeAgregar() {
       }}
     >
       {/* Navbar */}
-      <AppBar position="static" sx={{ backgroundColor: "#4CAF50" }}>
+      <AppBar position="static" sx={{ backgroundColor: "#000000" }}>
         <Toolbar>
           <IconButton
             edge="start"
@@ -150,40 +149,40 @@ export default function ExamSafeAgregar() {
         sx={{
           "& .MuiDrawer-paper": {
             width: 250,
-            backgroundColor: "#1a2b23",
+            backgroundColor: "#1a512e",
             color: "white",
             backgroundImage: "none",
           },
         }}
       >
         <Box sx={{ textAlign: "center", padding: 3 }}>
-           <Box
-            sx={{
-              width: 110,
-              height: 110,
-              borderRadius: "70%",
-              overflow: "hidden",
-              border: "2px solid #22382b",
-              boxShadow: 2,
-              backgroundColor: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto",
-              marginBottom: 2,
-              p: 1,
-            }}
-            >
-                        <img
-              src="/src/img/URP EXAM.png"
-              alt="ExamURP Logo"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-              }}
-            />
-          </Box>
+                     <Box
+          sx={{
+            width: 110,
+            height: 110,
+            borderRadius: "70%",
+            overflow: "hidden",
+            border: "2px solid #22382b",
+            boxShadow: 2,
+            backgroundColor: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto",
+            marginBottom: 2,
+            p: 1,
+          }}
+          >
+                      <img
+          src="/img/URPEXAM.png"
+          alt="Logo"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+          }}
+        />
+        </Box>
           <Typography
             variant="h6"
             sx={{
@@ -225,7 +224,7 @@ export default function ExamSafeAgregar() {
             borderTop: "1px solid gray",
             "&:hover": { backgroundColor: "#22382b", cursor: "pointer" },
           }}
-          onClick={handleLogout}
+          onClick={() => handleNav("/")}
         >
           <Typography
             variant="body1"
@@ -320,7 +319,7 @@ export default function ExamSafeAgregar() {
               backgroundColor: "#4CAF50",
               color: "white",
               fontWeight: "bold",
-              "&:hover": { backgroundColor: "#388E3C" },
+              "&:hover": { backgroundColor: "#1a512e" },
               mb: 2,
               width: "100%",
             }}
@@ -340,7 +339,7 @@ export default function ExamSafeAgregar() {
               backgroundColor: "#4CAF50",
               color: "white",
               fontWeight: "bold",
-              "&:hover": { backgroundColor: "#388E3C" },
+              "&:hover": { backgroundColor: "#1a512e" },
               width: "100%",
             }}
             onClick={handleAddExamen}
