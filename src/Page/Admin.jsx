@@ -14,7 +14,6 @@ import {
   Grid,
   Paper,
   TextField,
-  Rating,
   Select,
   MenuItem,
   InputLabel,
@@ -36,8 +35,6 @@ export default function AdminPanel() {
   const [filterPeriodo, setFilterPeriodo] = useState("");
   const [filterAnio, setFilterAnio] = useState("");
   const [selectedExamen, setSelectedExamen] = useState(null);
-  const [notas, setNotas] = useState({});
-  const [ratings, setRatings] = useState({});
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -84,7 +81,11 @@ export default function AdminPanel() {
     : [];
 
   return (
-    <Box sx={{ height: "100vh", width: "100vw", backgroundColor: "#f0f2f5", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ height: "100vh", 
+    width: "100vw", 
+    backgroundColor: "#f0f2f5", 
+    display: "flex", 
+    flexDirection: "column" }}>
       <AppBar position="static" sx={{ backgroundColor: "#4CAF50" }}>
         <Toolbar>
           <IconButton edge="start" color="inherit" onClick={() => setSidebarOpen(true)}>
@@ -110,17 +111,34 @@ export default function AdminPanel() {
              }}
            >
              <Box sx={{ textAlign: "center", padding: 3 }}>
-               <Avatar
-                 alt="ExamURP Logo"
-                 src="/src/img/ExamURP.png"
-                 sx={{
-                   width: 100,
-                   height: 100,
-                   margin: "0 auto",
-                   marginBottom: 2,
-                   backgroundColor: "#22382b",
-                 }}
-               />
+              <Box
+  sx={{
+    width: 110,
+    height: 110,
+    borderRadius: "70%",
+    overflow: "hidden",
+    border: "2px solid #22382b",
+    boxShadow: 2,
+    backgroundColor: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "0 auto",
+    marginBottom: 2,
+    p: 1,
+  }}
+  >
+              <img
+    src="/src/img/URP EXAM.png"
+    alt="ExamURP Logo"
+    style={{
+      width: "100%",
+      height: "100%",
+      objectFit: "contain",
+    }}
+  />
+</Box>
+
                <Typography
                  variant="h6"
                  sx={{
@@ -314,9 +332,6 @@ export default function AdminPanel() {
                         Periodo: {examen.periodo}
                       </Typography>
                     </Box>
-                    <Box sx={{ mt: 2 }}>
-                      <Rating value={ratings[examen.id] || 0} readOnly size="large" />
-                    </Box>
                   </Paper>
                 </Grid>
               )
@@ -377,7 +392,7 @@ export default function AdminPanel() {
                         style={{ minHeight: "400px", border: "none" }}
                       />
                     </Box>
-                    {/* Info, notas y clasificación */}
+                    {/* Info del examen */}
                     <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 320 }}>
                       <Typography variant="h5" sx={{ fontWeight: "bold" }}>{selectedExamen.curso}</Typography>
                       <Typography variant="subtitle1" color="textSecondary">
@@ -386,27 +401,6 @@ export default function AdminPanel() {
                       <Typography variant="subtitle2" color="textSecondary">
                         Periodo: {selectedExamen.periodo}
                       </Typography>
-                      <TextField
-                        label="Notas"
-                        multiline
-                        rows={5}
-                        fullWidth
-                        value={notas[selectedExamen.id] || ""}
-                        onChange={(e) =>
-                          setNotas({ ...notas, [selectedExamen.id]: e.target.value })
-                        }
-                        sx={{ mt: 2 }}
-                      />
-                      <Box display="flex" alignItems="center" gap={2} sx={{ mt: 2 }}>
-                        <Typography>Clasificación:</Typography>
-                        <Rating
-                          value={ratings[selectedExamen.id] || 0}
-                          onChange={(_, newValue) =>
-                            setRatings({ ...ratings, [selectedExamen.id]: newValue })
-                          }
-                          size="large"
-                        />
-                      </Box>
                     </Box>
                   </>
                 )}

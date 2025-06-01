@@ -157,17 +157,33 @@ export default function ExamSafeAgregar() {
         }}
       >
         <Box sx={{ textAlign: "center", padding: 3 }}>
-          <Avatar
-            alt="ExamGarage Logo"
-            src="/src/img/ExamGarage.png"
+           <Box
             sx={{
-              width: 100,
-              height: 100,
+              width: 110,
+              height: 110,
+              borderRadius: "70%",
+              overflow: "hidden",
+              border: "2px solid #22382b",
+              boxShadow: 2,
+              backgroundColor: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               margin: "0 auto",
               marginBottom: 2,
-              backgroundColor: "#22382b",
+              p: 1,
             }}
-          />
+            >
+                        <img
+              src="/src/img/URP EXAM.png"
+              alt="ExamURP Logo"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
           <Typography
             variant="h6"
             sx={{
@@ -180,7 +196,7 @@ export default function ExamSafeAgregar() {
               letterSpacing: 1,
             }}
           >
-            ExamGarage
+            Exam URP
           </Typography>
         </Box>
         <List>

@@ -73,11 +73,6 @@ const Login = () => {
           onChange={(e) => setClave(e.target.value)}
         />
         <button type="submit">Ingresar</button>
-        <div>
-          <a href="#">Recuperar Clave 1</a>
-          <br />
-          <a href="#">Recuperar Clave 2</a>
-        </div>
       </form>
     </div>
   );

@@ -173,7 +173,7 @@ export default function HistorialAlumno() {
 
   return (
     <Box sx={{ height: "100vh", width: "100vw", backgroundColor: "#f0f2f5", display: "flex", flexDirection: "column" }}>
-      <AppBar position="static" sx={{ backgroundColor: "#2196F3" }}>
+      <AppBar position="static" sx={{ backgroundColor: "#4CAF50" }}>
         <Toolbar>
           <IconButton edge="start" color="inherit" onClick={() => setSidebarOpen(true)}>
             <MenuIcon />
@@ -191,24 +191,40 @@ export default function HistorialAlumno() {
         sx={{
           "& .MuiDrawer-paper": {
             width: 250,
-            backgroundColor: "#1565C0",
+            backgroundColor: "#1a2b23",
             color: "white",
             backgroundImage: "none",
           },
         }}
       >
         <Box sx={{ textAlign: "center", padding: 3 }}>
-          <Avatar
-            alt="ExamURP Logo"
-            src="/src/img/ExamURP.png"
+           <Box
             sx={{
-              width: 100,
-              height: 100,
+              width: 110,
+              height: 110,
+              borderRadius: "70%",
+              overflow: "hidden",
+              border: "2px solid #22382b",
+              boxShadow: 2,
+              backgroundColor: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               margin: "0 auto",
               marginBottom: 2,
-              backgroundColor: "#0D47A1",
+              p: 1,
             }}
-          />
+            >
+                        <img
+              src="/src/img/URP EXAM.png"
+              alt="ExamURP Logo"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
           <Typography
             variant="h6"
             sx={{
@@ -221,7 +237,7 @@ export default function HistorialAlumno() {
               letterSpacing: 1,
             }}
           >
-            ExamURP
+           Exam URP
           </Typography>
           <Typography
             variant="body2"
