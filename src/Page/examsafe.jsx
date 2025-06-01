@@ -275,22 +275,33 @@ export default function ExamSafeAgregar() {
             fullWidth
             sx={{ mb: 2 }}
           />
-          <TextField
-            label="Tipo"
-            name="tipo"
-            value={newExamen.tipo}
-            onChange={handleAddChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Ciclo"
-            name="ciclo"
-            value={newExamen.ciclo}
-            onChange={handleAddChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Tipo</InputLabel>
+            <Select
+              name="tipo"
+              value={newExamen.tipo}
+              label="Tipo"
+              onChange={handleAddChange}
+            >
+              <MenuItem value="">Seleccione tipo</MenuItem>
+              <MenuItem value="Parcial">Parcial</MenuItem>
+              <MenuItem value="Final">Final</MenuItem>
+              <MenuItem value="Sustitutorio">Sustitutorio</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Ciclo</InputLabel>
+            <Select
+              name="ciclo"
+              value={newExamen.ciclo}
+              label="Ciclo"
+              onChange={handleAddChange}
+            >
+              <MenuItem value="">Seleccione ciclo</MenuItem>
+              <MenuItem value="6 ciclo">6 ciclo</MenuItem>
+              <MenuItem value="7 ciclo">7 ciclo</MenuItem>
+            </Select>
+          </FormControl>
           <TextField
             label="Año"
             name="año"
