@@ -104,7 +104,7 @@ export default function AdminPanel() {
              sx={{
                "& .MuiDrawer-paper": {
                  width: 250,
-                 backgroundColor: "#1a2b23",
+                 backgroundColor: "#1a512e",
                  color: "white",
                  backgroundImage: "none",
                },
