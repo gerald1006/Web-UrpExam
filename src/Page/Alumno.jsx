@@ -289,24 +289,88 @@ export default function Alumno() {
       )
     : [];
 
-  const registrarDescarga = (examen) => {
-    const historialDescargas = JSON.parse(localStorage.getItem('historialDescargas') || '[]');
+    const registrarDescarga = async (examen) => {
+      if (!currentUser || !currentUser.email) {
+        console.error('Usuario no autenticado');
+        return;
+      }
     
-    const descargaExistente = historialDescargas.find(item => item.id === examen.id);
+      try {
+        console.log('Registrando descarga para examen:', examen.id, 'Usuario:', currentUser.email);
+        
+        // Verificar si ya existe un registro de descarga para este usuario y examen
+        const { data: existingRecord, error: searchError } = await supabase
+          .from('historial_descargas')
+          .select('*')
+          .eq('examen_id', examen.id)
+          .eq('email_estudiante', currentUser.email)
+          .single();
     
-    if (descargaExistente) {
-      descargaExistente.contador_descargas += 1;
-      descargaExistente.fecha_descarga = new Date().toISOString();
-    } else {
-      historialDescargas.push({
-        id: examen.id,
-        fecha_descarga: new Date().toISOString(),
-        contador_descargas: 1
-      });
-    }
+        if (searchError && searchError.code !== 'PGRST116') {
+          // PGRST116 = no rows found, es esperado si no existe el registro
+          console.error('Error al buscar registro:', searchError);
+          return;
+        }
     
-    localStorage.setItem('historialDescargas', JSON.stringify(historialDescargas));
-  };
+        if (existingRecord) {
+          console.log('Actualizando registro existente');
+          // Actualizar contador de descargas existente
+          const { error: updateError } = await supabase
+            .from('historial_descargas')
+            .update({
+              contador_descargas: existingRecord.contador_descargas + 1,
+              fecha_descarga: new Date().toISOString()
+            })
+            .eq('id', existingRecord.id);
+    
+          if (updateError) {
+            console.error('Error al actualizar descarga:', updateError);
+            return;
+          }
+          
+          console.log('Registro actualizado exitosamente');
+        } else {
+          console.log('Creando nuevo registro de descarga');
+          // Crear nuevo registro de descarga
+          const { error: insertError } = await supabase
+            .from('historial_descargas')
+            .insert([{
+              examen_id: examen.id,
+              email_estudiante: currentUser.email,
+              contador_descargas: 1,
+              fecha_descarga: new Date().toISOString()
+            }]);
+    
+          if (insertError) {
+            console.error('Error al registrar descarga:', insertError);
+            return;
+          }
+          
+          console.log('Nuevo registro creado exitosamente');
+        }
+    
+        // También mantener el localStorage como respaldo
+        const historialLocal = JSON.parse(localStorage.getItem('historialDescargas') || '[]');
+        const descargaExistente = historialLocal.find(item => item.id === examen.id);
+        
+        if (descargaExistente) {
+          descargaExistente.contador_descargas += 1;
+          descargaExistente.fecha_descarga = new Date().toISOString();
+        } else {
+          historialLocal.push({
+            id: examen.id,
+            fecha_descarga: new Date().toISOString(),
+            contador_descargas: 1
+          });
+        }
+        
+        localStorage.setItem('historialDescargas', JSON.stringify(historialLocal));
+        
+        console.log('Descarga registrada exitosamente en Supabase y localStorage');
+      } catch (error) {
+        console.error('Error al registrar descarga:', error);
+      }
+    };
 
   const sendEmailNotification = (feedbackData) => {
     emailjs.send(
