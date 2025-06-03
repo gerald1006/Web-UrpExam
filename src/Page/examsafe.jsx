@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -42,16 +42,32 @@ export default function ExamSafeAgregar() {
     setNewExamen((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Limpia el blob URL cuando cambia el archivo o al desmontar
+  useEffect(() => {
+    return () => {
+      if (pdfPreview) {
+        URL.revokeObjectURL(pdfPreview);
+      }
+    };
+  }, [pdfPreview]);
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file && file.type === "application/pdf") {
       setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onload = () => setPdfPreview(reader.result);
-      reader.readAsDataURL(file);
+      // Limpia el blob anterior si existe
+      if (pdfPreview) {
+        URL.revokeObjectURL(pdfPreview);
+      }
+      // Crea un blob URL para el PDF
+      const blobUrl = URL.createObjectURL(file);
+      setPdfPreview(blobUrl);
     } else {
       alert("Por favor, selecciona un archivo PDF válido.");
       setSelectedFile(null);
+      if (pdfPreview) {
+        URL.revokeObjectURL(pdfPreview);
+      }
       setPdfPreview(null);
     }
   };
