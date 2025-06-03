@@ -21,8 +21,14 @@ import {
   Modal,
   Fade,
   Backdrop,
+  Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from "@mui/material";
-import { Menu as MenuIcon } from "@mui/icons-material";
+import { Menu as MenuIcon, Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import { supabase } from "../../supabaseClient";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -35,6 +41,12 @@ export default function AdminPanel() {
   const [filterPeriodo, setFilterPeriodo] = useState("");
   const [filterAnio, setFilterAnio] = useState("");
   const [selectedExamen, setSelectedExamen] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editExamen, setEditExamen] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [examenToDelete, setExamenToDelete] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+  const [editPdfFile, setEditPdfFile] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -79,6 +91,97 @@ export default function AdminPanel() {
           (filterAnio ? String(examen.año) === String(filterAnio) : true)
       )
     : [];
+
+  // Editar examen
+  const handleEditClick = (examen) => {
+    setEditExamen({ ...examen });
+    setEditPdfFile(null);
+    setEditModalOpen(true);
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditExamen((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditPdfChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setEditPdfFile(file);
+  };
+
+  const handleEditSave = async () => {
+    if (!editExamen) return;
+    const { id, ...fields } = editExamen;
+    let newArchivoUrl = editExamen.archivo_url;
+
+    // Buscar el examen original para comparar el archivo_url
+    const original = examenes.find((ex) => ex.id === id);
+    const oldUrl = original?.archivo_url;
+
+    // Si se seleccionó un nuevo PDF, subirlo y eliminar el anterior
+    if (editPdfFile) {
+      try {
+        // Eliminar el archivo anterior del storage
+        if (oldUrl) {
+          const urlParts = oldUrl.split("/object/public/");
+          if (urlParts.length === 2) {
+            const [bucket, ...filePathArr] = urlParts[1].split("/");
+            const filePath = filePathArr.join("/");
+            await supabase.storage.from(bucket).remove([filePath]);
+          }
+        }
+        // Subir el nuevo archivo
+        const bucketName = "examenes"; // Usa el nombre correcto de tu bucket
+        const fileExt = editPdfFile.name.split('.').pop();
+        const filePath = `examenes/${id}_${Date.now()}.${fileExt}`;
+        let { data, error: uploadError } = await supabase.storage
+          .from(bucketName)
+          .upload(filePath, editPdfFile, { cacheControl: "3600", upsert: true });
+        if (uploadError) throw uploadError;
+        // Obtener la URL pública
+        const { data: publicUrlData } = supabase
+          .storage
+          .from(bucketName)
+          .getPublicUrl(filePath);
+        newArchivoUrl = publicUrlData.publicUrl;
+      } catch (e) {
+        setSnackbar({ open: true, message: "Error al subir el nuevo PDF" });
+        return;
+      }
+    }
+
+    // Actualizar la base de datos con la nueva URL si cambió
+    const { error } = await supabase.from("examenes").update({
+      ...fields,
+      archivo_url: newArchivoUrl,
+    }).eq("id", id);
+
+    if (!error) {
+      setExamenes((prev) =>
+        prev.map((ex) => (ex.id === id ? { ...editExamen, archivo_url: newArchivoUrl } : ex))
+      );
+      setSnackbar({ open: true, message: "Examen editado correctamente" });
+      setEditModalOpen(false);
+    }
+  };
+
+  // Eliminar examen
+  const handleDeleteClick = (examen) => {
+    setExamenToDelete(examen);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!examenToDelete) return;
+    const { id } = examenToDelete;
+    const { error } = await supabase.from("examenes").delete().eq("id", id);
+    if (!error) {
+      setExamenes((prev) => prev.filter((ex) => ex.id !== id));
+      setSnackbar({ open: true, message: "Examen eliminado correctamente" });
+    }
+    setDeleteDialogOpen(false);
+    setExamenToDelete(null);
+  };
 
   return (
     <Box sx={{ height: "100vh", 
@@ -321,23 +424,31 @@ export default function AdminPanel() {
                     }}
                     onClick={() => setSelectedExamen(examen)}
                   >
-                    <Box>
-                      <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
-                        {examen.curso}
-                      </Typography>
-                      <Typography variant="body1" color="textSecondary" sx={{ fontSize: 18 }}>
-                        {examen.tipo} • {examen.ciclo} • {examen.año}
-                      </Typography>
-                      <Typography variant="body1" color="textSecondary" sx={{ fontSize: 18 }}>
-                        Periodo: {examen.periodo}
-                      </Typography>
+                    <Box sx={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <Box>
+                        <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
+                          {examen.curso}
+                        </Typography>
+                        <Typography variant="body1" color="textSecondary" sx={{ fontSize: 18 }}>
+                          {examen.tipo} • {examen.ciclo} • {examen.año}
+                        </Typography>
+                        <Typography variant="body1" color="textSecondary" sx={{ fontSize: 18 }}>
+                          Periodo: {examen.periodo}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <IconButton onClick={(e) => { e.stopPropagation(); handleEditClick(examen); }} size="small">
+                          <EditIcon color="primary" />
+                        </IconButton>
+                        <IconButton onClick={(e) => { e.stopPropagation(); handleDeleteClick(examen); }} size="small">
+                          <DeleteIcon color="error" />
+                        </IconButton>
+                      </Box>
                     </Box>
                   </Paper>
                 </Grid>
               )
             ))}
-            
-      
           </Grid>
           {/* Modal Preview */}
           <Modal
@@ -407,6 +518,136 @@ export default function AdminPanel() {
               </Box>
             </Fade>
           </Modal>
+
+          {/* Modal Editar Examen */}
+          <Modal
+            open={editModalOpen}
+            onClose={() => setEditModalOpen(false)}
+            closeAfterTransition
+            slots={{ backdrop: Backdrop }}
+            slotProps={{
+              backdrop: {
+                timeout: 500,
+                sx: { backgroundColor: "rgba(0,0,0,0.5)" },
+              },
+            }}
+          >
+            <Fade in={editModalOpen}>
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: 400,
+                  bgcolor: "background.paper",
+                  borderRadius: 3,
+                  boxShadow: 24,
+                  p: 4,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                }}
+              >
+                <Typography variant="h6" sx={{ mb: 2 }}>Editar Examen</Typography>
+                <TextField
+                  label="Curso"
+                  name="curso"
+                  value={editExamen?.curso || ""}
+                  onChange={handleEditChange}
+                  fullWidth
+                  sx={{ mb: 1 }}
+                />
+                <FormControl fullWidth sx={{ mb: 1 }}>
+                  <InputLabel>Tipo</InputLabel>
+                  <Select
+                    name="tipo"
+                    value={editExamen?.tipo || ""}
+                    label="Tipo"
+                    onChange={handleEditChange}
+                  >
+                    <MenuItem value="Parcial">Parcial</MenuItem>
+                    <MenuItem value="Final">Final</MenuItem>
+                    <MenuItem value="Sustitutorio">Sustitutorio</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth sx={{ mb: 1 }}>
+                  <InputLabel>Ciclo</InputLabel>
+                  <Select
+                    name="ciclo"
+                    value={editExamen?.ciclo || ""}
+                    label="Ciclo"
+                    onChange={handleEditChange}
+                  >
+                    <MenuItem value="6 ciclo">6 ciclo</MenuItem>
+                    <MenuItem value="7 ciclo">7 ciclo</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth sx={{ mb: 1 }}>
+                  <InputLabel>Periodo</InputLabel>
+                  <Select
+                    name="periodo"
+                    value={editExamen?.periodo || ""}
+                    label="Periodo"
+                    onChange={handleEditChange}
+                  >
+                    <MenuItem value="I">I</MenuItem>
+                    <MenuItem value="II">II</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Año"
+                  name="año"
+                  value={editExamen?.año || ""}
+                  onChange={handleEditChange}
+                  fullWidth
+                  sx={{ mb: 1 }}
+                />
+                {/* Subir nuevo PDF */}
+                <Button
+                  variant="outlined"
+                  component="label"
+                  sx={{ mb: 1 }}
+                >
+                  {editPdfFile ? "PDF seleccionado" : "Subir nuevo PDF"}
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    hidden
+                    onChange={handleEditPdfChange}
+                  />
+                </Button>
+              
+                <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
+                  <Button onClick={() => setEditModalOpen(false)}>Cancelar</Button>
+                  <Button variant="contained" onClick={handleEditSave}>Guardar</Button>
+                </Box>
+              </Box>
+            </Fade>
+          </Modal>
+
+          {/* Dialog Confirmar Eliminar */}
+          <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+            <DialogTitle>¿Estás seguro que quieres eliminar este examen?</DialogTitle>
+            <DialogContent>
+              <Typography>
+                Esta acción no se puede deshacer.
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+              <Button color="error" variant="contained" onClick={handleDeleteConfirm}>Sí, eliminar</Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Snackbar de éxito */}
+          <Snackbar
+            open={snackbar.open}
+            autoHideDuration={2500}
+            onClose={() => setSnackbar({ open: false, message: "" })}
+            message={snackbar.message}
+            anchorOrigin={{ vertical: "top", horizontal: "center" }}
+          />
         </Box>
       </Box>
     </Box>
