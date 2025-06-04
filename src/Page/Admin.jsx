@@ -413,7 +413,7 @@ export default function AdminPanel() {
                       borderRadius: 4,
                       cursor: "pointer",
                       transition: "0.2s",
-                      height: 200, // Altura fija para todas las cards
+                      height: 210, // Altura fija para todas las cards
                       width: 350, // Anchura fija para todas las cards
                       minHeight: 200, // Altura mínima garantizada
                       minWidth: 350, // Anchura mínima garantizada
