@@ -27,6 +27,8 @@ import {
   Alert,
   Snackbar,
   CircularProgress,
+  Pagination,
+  Stack,
 } from "@mui/material";
 import { Menu as MenuIcon, Send as SendIcon } from "@mui/icons-material";
 import { supabase } from "../../supabaseClient";
@@ -48,6 +50,11 @@ export default function Alumno() {
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [userRatings, setUserRatings] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // 10 exámenes por página
+  
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -61,6 +68,11 @@ export default function Alumno() {
       loadUserRatingsFromDB();
     }
   }, [currentUser, examenes]);
+
+  // Resetear página cuando cambien los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCurso, filterTipo, filterCiclo, filterPeriodo, filterAnio]);
 
   const getCurrentUser = async () => {
     try {
@@ -278,6 +290,7 @@ export default function Alumno() {
     }
   };
 
+  // Filtrar exámenes
   const filteredExamenes = Array.isArray(examenes)
     ? examenes.filter(
         (examen) =>
@@ -289,88 +302,101 @@ export default function Alumno() {
       )
     : [];
 
-    const registrarDescarga = async (examen) => {
-      if (!currentUser || !currentUser.email) {
-        console.error('Usuario no autenticado');
+  // Calcular paginación
+  const totalPages = Math.ceil(filteredExamenes.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentExamenes = filteredExamenes.slice(startIndex, endIndex);
+
+  // Manejar cambio de página
+  const handlePageChange = (event, value) => {
+    setCurrentPage(value);
+    // Scroll hacia arriba al cambiar de página
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const registrarDescarga = async (examen) => {
+    if (!currentUser || !currentUser.email) {
+      console.error('Usuario no autenticado');
+      return;
+    }
+
+    try {
+      console.log('Registrando descarga para examen:', examen.id, 'Usuario:', currentUser.email);
+      
+      // Verificar si ya existe un registro de descarga para este usuario y examen
+      const { data: existingRecord, error: searchError } = await supabase
+        .from('historial_descargas')
+        .select('*')
+        .eq('examen_id', examen.id)
+        .eq('email_estudiante', currentUser.email)
+        .single();
+
+      if (searchError && searchError.code !== 'PGRST116') {
+        // PGRST116 = no rows found, es esperado si no existe el registro
+        console.error('Error al buscar registro:', searchError);
         return;
       }
-    
-      try {
-        console.log('Registrando descarga para examen:', examen.id, 'Usuario:', currentUser.email);
-        
-        // Verificar si ya existe un registro de descarga para este usuario y examen
-        const { data: existingRecord, error: searchError } = await supabase
+
+      if (existingRecord) {
+        console.log('Actualizando registro existente');
+        // Actualizar contador de descargas existente
+        const { error: updateError } = await supabase
           .from('historial_descargas')
-          .select('*')
-          .eq('examen_id', examen.id)
-          .eq('email_estudiante', currentUser.email)
-          .single();
-    
-        if (searchError && searchError.code !== 'PGRST116') {
-          // PGRST116 = no rows found, es esperado si no existe el registro
-          console.error('Error al buscar registro:', searchError);
+          .update({
+            contador_descargas: existingRecord.contador_descargas + 1,
+            fecha_descarga: new Date().toISOString()
+          })
+          .eq('id', existingRecord.id);
+
+        if (updateError) {
+          console.error('Error al actualizar descarga:', updateError);
           return;
         }
-    
-        if (existingRecord) {
-          console.log('Actualizando registro existente');
-          // Actualizar contador de descargas existente
-          const { error: updateError } = await supabase
-            .from('historial_descargas')
-            .update({
-              contador_descargas: existingRecord.contador_descargas + 1,
-              fecha_descarga: new Date().toISOString()
-            })
-            .eq('id', existingRecord.id);
-    
-          if (updateError) {
-            console.error('Error al actualizar descarga:', updateError);
-            return;
-          }
-          
-          console.log('Registro actualizado exitosamente');
-        } else {
-          console.log('Creando nuevo registro de descarga');
-          // Crear nuevo registro de descarga
-          const { error: insertError } = await supabase
-            .from('historial_descargas')
-            .insert([{
-              examen_id: examen.id,
-              email_estudiante: currentUser.email,
-              contador_descargas: 1,
-              fecha_descarga: new Date().toISOString()
-            }]);
-    
-          if (insertError) {
-            console.error('Error al registrar descarga:', insertError);
-            return;
-          }
-          
-          console.log('Nuevo registro creado exitosamente');
-        }
-    
-        // También mantener el localStorage como respaldo
-        const historialLocal = JSON.parse(localStorage.getItem('historialDescargas') || '[]');
-        const descargaExistente = historialLocal.find(item => item.id === examen.id);
         
-        if (descargaExistente) {
-          descargaExistente.contador_descargas += 1;
-          descargaExistente.fecha_descarga = new Date().toISOString();
-        } else {
-          historialLocal.push({
-            id: examen.id,
-            fecha_descarga: new Date().toISOString(),
-            contador_descargas: 1
-          });
+        console.log('Registro actualizado exitosamente');
+      } else {
+        console.log('Creando nuevo registro de descarga');
+        // Crear nuevo registro de descarga
+        const { error: insertError } = await supabase
+          .from('historial_descargas')
+          .insert([{
+            examen_id: examen.id,
+            email_estudiante: currentUser.email,
+            contador_descargas: 1,
+            fecha_descarga: new Date().toISOString()
+          }]);
+
+        if (insertError) {
+          console.error('Error al registrar descarga:', insertError);
+          return;
         }
         
-        localStorage.setItem('historialDescargas', JSON.stringify(historialLocal));
-        
-        console.log('Descarga registrada exitosamente en Supabase y localStorage');
-      } catch (error) {
-        console.error('Error al registrar descarga:', error);
+        console.log('Nuevo registro creado exitosamente');
       }
-    };
+
+      // También mantener el localStorage como respaldo
+      const historialLocal = JSON.parse(localStorage.getItem('historialDescargas') || '[]');
+      const descargaExistente = historialLocal.find(item => item.id === examen.id);
+      
+      if (descargaExistente) {
+        descargaExistente.contador_descargas += 1;
+        descargaExistente.fecha_descarga = new Date().toISOString();
+      } else {
+        historialLocal.push({
+          id: examen.id,
+          fecha_descarga: new Date().toISOString(),
+          contador_descargas: 1
+        });
+      }
+      
+      localStorage.setItem('historialDescargas', JSON.stringify(historialLocal));
+      
+      console.log('Descarga registrada exitosamente en Supabase y localStorage');
+    } catch (error) {
+      console.error('Error al registrar descarga:', error);
+    }
+  };
 
   const sendEmailNotification = (feedbackData) => {
     emailjs.send(
@@ -422,33 +448,33 @@ export default function Alumno() {
         }}
       >
         <Box sx={{ textAlign: "center", padding: 3 }}>
-                     <Box
-          sx={{
-            width: 110,
-            height: 110,
-            borderRadius: "70%",
-            overflow: "hidden",
-            border: "2px solid #22382b",
-            boxShadow: 2,
-            backgroundColor: "#fff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto",
-            marginBottom: 2,
-            p: 1,
-          }}
+          <Box
+            sx={{
+              width: 110,
+              height: 110,
+              borderRadius: "70%",
+              overflow: "hidden",
+              border: "2px solid #22382b",
+              boxShadow: 2,
+              backgroundColor: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto",
+              marginBottom: 2,
+              p: 1,
+            }}
           >
-                      <img
-          src="/img/URPEXAM.png"
-          alt="Logo"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-          }}
-        />
-        </Box>
+            <img
+              src="/img/URPEXAM.png"
+              alt="Logo"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
           <Typography
             variant="h6"
             sx={{
@@ -589,6 +615,28 @@ export default function Alumno() {
             </FormControl>
           </Box>
 
+          {/* Información de resultados y paginación */}
+          {filteredExamenes.length > 0 && (
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+              <Typography variant="body1" color="black">
+                Mostrando {startIndex + 1}-{Math.min(endIndex, filteredExamenes.length)} de {filteredExamenes.length} exámenes
+              </Typography>
+              {totalPages > 1 && (
+                <Stack spacing={2}>
+                  <Pagination
+                    count={totalPages}
+                    page={currentPage}
+                    onChange={handlePageChange}
+                    color="black"
+                    size="medium"
+                    showFirstButton
+                    showLastButton
+                  />
+                </Stack>
+              )}
+            </Box>
+          )}
+
           {/* Grid de exámenes */}
           <Grid
             container
@@ -600,16 +648,19 @@ export default function Alumno() {
               mx: "auto",
             }}
           >
-            {filteredExamenes.length === 0 ? (
+            {currentExamenes.length === 0 ? (
               <Grid item xs={12}>
                 <Box sx={{ textAlign: "center", mt: 8, color: "#888" }}>
                   <Typography variant="h6">
-                    No hay exámenes para mostrar.
+                    {filteredExamenes.length === 0 
+                      ? "No hay exámenes para mostrar."
+                      : "No hay exámenes en esta página."
+                    }
                   </Typography>
                 </Box>
               </Grid>
             ) : (
-              filteredExamenes.map((examen) => (
+              currentExamenes.map((examen) => (
                 <Grid
                   item
                   xs={12}
@@ -625,13 +676,15 @@ export default function Alumno() {
                   <Paper
                     elevation={4}
                     sx={{
-                      p: 4,
+                      p: 3,
                       borderRadius: 4,
                       cursor: "pointer",
                       transition: "0.2s",
-                      height: 280,
-                      width: "100%",
-                      maxWidth: 350,
+                      height: 250, // Altura fija para todas las cards
+                      width: 350, // Anchura fija para todas las cards
+                      minHeight: 250, // Altura mínima garantizada
+                      minWidth: 350, // Anchura mínima garantizada
+                      maxWidth: 350, // Anchura máxima garantizada
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "space-between",
@@ -678,6 +731,21 @@ export default function Alumno() {
               )
             ))}
           </Grid>
+
+          {/* Paginación inferior */}
+          {totalPages > 1 && (
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+              <Pagination
+                count={totalPages}
+                page={currentPage}
+                onChange={handlePageChange}
+                color="black"
+                size="medium"
+                showFirstButton
+                showLastButton
+              />
+            </Box>
+          )}
 
           {/* Modal de evaluación */}
           <Modal
