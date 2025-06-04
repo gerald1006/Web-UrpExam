@@ -53,7 +53,7 @@ export default function Alumno() {
   
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10); // 10 exámenes por página
+  const [itemsPerPage] = useState(9); // 10 exámenes por página
   
   const navigate = useNavigate();
   const location = useLocation();
