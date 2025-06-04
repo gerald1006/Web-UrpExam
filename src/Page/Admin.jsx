@@ -409,13 +409,15 @@ export default function AdminPanel() {
                   <Paper
                     elevation={4}
                     sx={{
-                      p: 4,
+                      p: 3,
                       borderRadius: 4,
                       cursor: "pointer",
                       transition: "0.2s",
-                      height: 240,
-                      width: "100%",
-                      maxWidth: 350,
+                      height: 200, // Altura fija para todas las cards
+                      width: 350, // Anchura fija para todas las cards
+                      minHeight: 200, // Altura mínima garantizada
+                      minWidth: 350, // Anchura mínima garantizada
+                      maxWidth: 350, // Anchura máxima garantizada
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "space-between",
